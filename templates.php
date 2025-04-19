@@ -4,7 +4,6 @@ STM_LMS_Templates::load_templates();
 
 class STM_LMS_Templates {
 
-
 	private static $instance;
 
 	public static function load_templates() {
@@ -98,130 +97,165 @@ class STM_LMS_Templates {
 	}
 
 	public static function single_course() {
-		if ( isset( $_GET['course_style'] ) ) {
-			self::show_lms_template( 'course/' . sanitize_text_field( wp_unslash( $_GET['course_style'] ) ) );
+		// Depuración para confirmar que este método se está ejecutando
+		if (current_user_can('manage_options')) {
+			echo '<div style="background-color: #ffeb3b; padding: 10px; margin: 10px 0;">';
+			echo 'Depuración: Método single_course() se está ejecutando<br>';
+			echo '¿course_style está definido? ' . (isset($_GET['course_style']) ? 'Sí: ' . esc_html(sanitize_text_field(wp_unslash($_GET['course_style']))) : 'No') . '<br>';
+			echo '</div>';
+			error_log('Depuración: Método single_course() se está ejecutando - ¿course_style está definido? ' . (isset($_GET['course_style']) ? 'Sí: ' . sanitize_text_field(wp_unslash($_GET['course_style'])) : 'No'));
+		}
+
+		if (isset($_GET['course_style'])) {
+			self::show_lms_template('course/' . sanitize_text_field(wp_unslash($_GET['course_style'])));
 			return;
 		}
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-		echo self::load_lms_template( 'course', array( 'course_style' => 'default' ) );
+		echo self::load_lms_template('course', array('course_style' => 'default'));
 	}
 
 	public static function single_bundle() {
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-		echo self::load_lms_template( 'bundle/single' );
+		echo self::load_lms_template('bundle/single');
 	}
 
-	public static function lms_template( $template ) {
+	public static function lms_template($template) {
 		global $post;
 		$post_types = array(
 			'stm-courses',
 			'stm-course-bundles',
 		);
-		if ( in_array( $post->post_type, $post_types ) ) { // phpcs:ignore WordPress.PHP.StrictInArray.MissingTrueStrict
-			return self::locate_template( 'masterstudy-lms-learning-management-system' );
+		if (in_array($post->post_type, $post_types)) { // phpcs:ignore WordPress.PHP.StrictInArray.MissingTrueStrict
+			return self::locate_template('masterstudy-lms-learning-management-system');
 		}
 
 		return $template;
 	}
 
-	public static function locate_template( $template_name, $stm_lms_vars = array() ) {
-		$template_name = self::sanitize_template_name( $template_name );
+	public static function locate_template($template_name, $stm_lms_vars = array()) {
+		$template_name = self::sanitize_template_name($template_name);
 		$template_name = '/stm-lms-templates/' . $template_name . '.php';
-		$template_name = apply_filters( 'stm_lms_template_name', $template_name, $stm_lms_vars );
-		$lms_template  = apply_filters( 'stm_lms_template_file', STM_LMS_PATH, $template_name ) . $template_name;
+		$template_name = apply_filters('stm_lms_template_name', $template_name, $stm_lms_vars);
+		$lms_template  = apply_filters('stm_lms_template_file', STM_LMS_PATH, $template_name) . $template_name;
 
-		return ( locate_template( $template_name ) ) ? locate_template( $template_name ) : realpath( $lms_template );
+		// Añadir depuración
+		if (current_user_can('manage_options')) {
+			$located_in_theme = locate_template($template_name);
+			error_log('STM_LMS_Templates::locate_template - Template Name: ' . $template_name);
+			error_log('STM_LMS_Templates::locate_template - Located in Theme: ' . ($located_in_theme ?: 'Not found in theme'));
+			error_log('STM_LMS_Templates::locate_template - Final Template Path: ' . ($located_in_theme ?: realpath($lms_template)));
+			echo '<div style="background-color: #ffeb3b; padding: 10px; margin: 10px 0;">';
+			echo 'Depuración: STM_LMS_Templates::locate_template<br>';
+			echo 'Intentando cargar: ' . esc_html($template_name) . '<br>';
+			echo 'Encontrado en el tema: ' . ($located_in_theme ? esc_html($located_in_theme) : 'No encontrado en el tema') . '<br>';
+			echo 'Ruta final: ' . esc_html($located_in_theme ?: realpath($lms_template)) . '<br>';
+			echo '</div>';
+		}
+
+		return (locate_template($template_name)) ? locate_template($template_name) : realpath($lms_template);
 	}
 
-	public static function vc_locate_template( $template_name ) {
+	public static function vc_locate_template($template_name) {
 		$plugin_path         = STM_LMS_PATH . '/includes/visual_composer/' . $template_name . '.php';
 		$theme_template_name = '/' . $template_name . '.php';
-		return ( locate_template( $theme_template_name ) ) ? locate_template( $theme_template_name ) : $plugin_path;
-
+		return (locate_template($theme_template_name)) ? locate_template($theme_template_name) : $plugin_path;
 	}
 
-	public static function load_lms_template( $template_name, $stm_lms_vars = array() ) {
+	public static function load_lms_template($template_name, $stm_lms_vars = array()) {
 		ob_start();
-		extract( $stm_lms_vars ); // phpcs:ignore WordPress.PHP.DontExtract
+		extract($stm_lms_vars); // phpcs:ignore WordPress.PHP.DontExtract
 
-		$tpl = self::locate_template( $template_name, $stm_lms_vars );
-		if ( file_exists( $tpl ) ) {
+		$tpl = self::locate_template($template_name, $stm_lms_vars);
+		if (file_exists($tpl)) {
 			include $tpl;
 		}
 
-		return apply_filters( "stm_lms_{$template_name}", ob_get_clean(), $stm_lms_vars );
+		return apply_filters("stm_lms_{$template_name}", ob_get_clean(), $stm_lms_vars);
 	}
 
-	public static function show_lms_template( $template_name, $stm_lms_vars = array() ) {
+	public static function show_lms_template($template_name, $stm_lms_vars = array()) {
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-		echo self::load_lms_template( $template_name, $stm_lms_vars );
+		echo self::load_lms_template($template_name, $stm_lms_vars);
 	}
-
 
 	public static function get_instance() {
-		if ( ! isset( self::$instance ) ) {
+		if (!isset(self::$instance)) {
 			self::$instance = new self();
 		}
 
 		return self::$instance;
 	}
 
-	public static function stm_lms_locate_vc_element( $templates, $template_name = '', $custom_path = '' ) {
+	public static function stm_lms_locate_vc_element($templates, $template_name = '', $custom_path = '') {
 		$located = false;
 
-		foreach ( (array) $templates as $template ) {
+		foreach ((array) $templates as $template) {
 
 			$folder = $template;
 
-			if ( ! empty( $template_name ) ) {
+			if (!empty($template_name)) {
 				$template = $template_name;
 			}
 
-			if ( substr( $template, -4 ) !== '.php' ) {
+			if (substr($template, -4) !== '.php') {
 				$template .= '.php';
 			}
 
-			if ( empty( $custom_path ) ) {
-				$located = locate_template( 'partials/vc_parts/' . $folder . '/' . $template );
-				if ( ! ( $located ) ) {
+			if (empty($custom_path)) {
+				$located = locate_template('partials/vc_parts/' . $folder . '/' . $template);
+				if (!($located)) {
 					$located = STM_LMS_PATH . '/includes/shortcodes/partials/' . $folder . '/' . $template;
 				}
 			} else {
-				$located = locate_template( $custom_path );
-				if ( ! ( $located ) ) {
+				$located = locate_template($custom_path);
+				if (!($located)) {
 					$located = STM_LMS_PATH . '/' . $custom_path . '.php';
 				}
 			}
 
-			if ( file_exists( $template_name ) ) {
+			if (file_exists($template_name)) {
 				break;
 			}
 		}
 
-		return apply_filters( 'stm_lms_locate_vc_element', $located, $templates );
+		return apply_filters('stm_lms_locate_vc_element', $located, $templates);
 	}
 
-	public static function stm_lms_load_vc_element( $__template, $__vars = array(), $__template_name = '', $custom_path = '' ) {
-		extract( $__vars ); // phpcs:ignore WordPress.PHP.DontExtract
-		$element = self::stm_lms_locate_vc_element( $__template, $__template_name, $custom_path );
-		if ( ! file_exists( $element ) && strpos( $__template_name, 'style_' ) !== false ) {
-			$element = str_replace( $__template_name, 'style_1', $element );
+	public static function stm_lms_load_vc_element($__template, $__vars = array(), $__template_name = '', $custom_path = '') {
+		extract($__vars); // phpcs:ignore WordPress.PHP.DontExtract
+		$element = self::stm_lms_locate_vc_element($__template, $__template_name, $custom_path);
+		if (!file_exists($element) && strpos($__template_name, 'style_') !== false) {
+			$element = str_replace($__template_name, 'style_1', $element);
 		}
-		if ( file_exists( $element ) ) {
+		if (file_exists($element)) {
 			include $element;
 		} else {
-			echo esc_html__( 'Element not found in', 'masterstudy-lms-learning-management-system' );
-			echo esc_html( ' ' . $element );
+			echo esc_html__('Element not found in', 'masterstudy-lms-learning-management-system');
+			echo esc_html(' ' . $element);
 		}
 	}
 
-	public static function sanitize_template_name( $template_name ) {
+	public static function sanitize_template_name($template_name) {
 		$pattern = '/\.\.?\/|\\\+/';
 
-		if ( preg_match( $pattern, $template_name ) ) {
+		if (preg_match($pattern, $template_name)) {
 			return false;
 		}
 
 		return $template_name;
 	}
 }
+
+// Añadir filtro para depurar el nombre de la plantilla
+add_filter('stm_lms_template_name', function($template_name, $stm_lms_vars) {
+    if (current_user_can('manage_options')) {
+        echo '<div style="background-color: #ffeb3b; padding: 10px; margin: 10px 0;">';
+        echo 'Depuración: Filtro stm_lms_template_name<br>';
+        echo 'Nombre de la plantilla: ' . esc_html($template_name) . '<br>';
+        echo 'Vars: <pre>' . esc_html(print_r($stm_lms_vars, true)) . '</pre>';
+        echo '</div>';
+        error_log('stm_lms_template_name filter - Template Name: ' . $template_name . ' - Vars: ' . print_r($stm_lms_vars, true));
+    }
+    return $template_name;
+}, 10, 2);
+?>
